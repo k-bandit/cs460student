@@ -1,0 +1,1289 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CYBER STRIKE: WebGL Odyssey</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --primary: #00f0ff;
+      --secondary: #ff0077;
+      --accent: #ffe600;
+      --bg-dark: #05060f;
+      --glass: rgba(10, 16, 32, 0.7);
+      --glass-border: rgba(0, 240, 255, 0.3);
+      --hud-glow: 0 0 15px rgba(0, 240, 255, 0.5);
+    }
+
+    * {
+      box-sizing: border-box;
+      user-select: none;
+    }
+
+    html, body {
+      background-color: var(--bg-dark);
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden !important;
+      font-family: 'Rajdhani', sans-serif;
+      color: #fff;
+    }
+
+    #c {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 1;
+      display: block;
+    }
+
+    /* Ambient CRT Scanline & Vignette Effect */
+    .screen-overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 2;
+      pointer-events: none;
+      background: radial-gradient(circle at center, transparent 60%, rgba(0, 0, 0, 0.65) 100%),
+                  linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%);
+      background-size: 100% 100%, 100% 4px;
+    }
+
+    /* Top HUD */
+    #hud {
+      position: absolute;
+      top: 20px;
+      left: 24px;
+      right: 24px;
+      z-index: 10;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      pointer-events: none;
+    }
+
+    .hud-panel {
+      background: var(--glass);
+      border: 1px solid var(--glass-border);
+      border-radius: 12px;
+      padding: 12px 20px;
+      backdrop-filter: blur(12px);
+      box-shadow: var(--hud-glow), inset 0 0 12px rgba(0, 240, 255, 0.1);
+      display: flex;
+      gap: 24px;
+      align-items: center;
+    }
+
+    .hud-stat {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .hud-label {
+      font-family: 'Orbitron', monospace;
+      font-size: 11px;
+      letter-spacing: 2px;
+      color: #7b92b2;
+      text-transform: uppercase;
+      margin-bottom: 2px;
+    }
+
+    .hud-value {
+      font-family: 'Orbitron', monospace;
+      font-size: 26px;
+      font-weight: 700;
+      color: var(--primary);
+      text-shadow: 0 0 12px rgba(0, 240, 255, 0.8);
+      line-height: 1;
+    }
+
+    .hud-value.alt {
+      color: var(--secondary);
+      text-shadow: 0 0 12px rgba(255, 0, 119, 0.8);
+    }
+
+    .hud-value.gold {
+      color: var(--accent);
+      text-shadow: 0 0 12px rgba(255, 230, 0, 0.8);
+    }
+
+    /* Shield / Health Bar */
+    .shield-container {
+      width: 140px;
+      height: 14px;
+      background: rgba(255, 255, 255, 0.08);
+      border-radius: 7px;
+      overflow: hidden;
+      border: 1px solid rgba(0, 240, 255, 0.4);
+      margin-top: 4px;
+      position: relative;
+    }
+
+    .shield-fill {
+      height: 100%;
+      width: 100%;
+      background: linear-gradient(90deg, #00f0ff, #00ff88);
+      border-radius: 6px;
+      box-shadow: 0 0 10px #00f0ff;
+      transition: width 0.2s cubic-bezier(0.1, 0.9, 0.2, 1), background-color 0.3s;
+    }
+
+    /* Controls Bar at Bottom */
+    #bottom-bar {
+      position: absolute;
+      bottom: 16px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 10;
+      display: flex;
+      gap: 16px;
+      background: var(--glass);
+      border: 1px solid rgba(0, 240, 255, 0.25);
+      border-radius: 30px;
+      padding: 8px 24px;
+      backdrop-filter: blur(8px);
+      font-size: 14px;
+      font-weight: 600;
+      letter-spacing: 1px;
+      color: #9cb5db;
+      pointer-events: none;
+    }
+
+    .key-badge {
+      background: rgba(0, 240, 255, 0.15);
+      border: 1px solid rgba(0, 240, 255, 0.5);
+      padding: 2px 7px;
+      border-radius: 4px;
+      color: var(--primary);
+      font-family: 'Orbitron', monospace;
+      font-size: 11px;
+      margin-right: 4px;
+    }
+
+    /* Modals / Overlay Screen */
+    .modal-overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 50;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      background: rgba(3, 5, 12, 0.85);
+      backdrop-filter: blur(16px);
+      transition: opacity 0.3s ease;
+    }
+
+    .modal-card {
+      background: rgba(11, 19, 43, 0.9);
+      border: 2px solid var(--primary);
+      border-radius: 20px;
+      padding: 40px 50px;
+      text-align: center;
+      max-width: 520px;
+      box-shadow: 0 0 40px rgba(0, 240, 255, 0.4), inset 0 0 20px rgba(0, 240, 255, 0.15);
+      animation: popIn 0.4s cubic-bezier(0.18, 0.89, 0.32, 1.28);
+    }
+
+    @keyframes popIn {
+      0% { transform: scale(0.85); opacity: 0; }
+      100% { transform: scale(1); opacity: 1; }
+    }
+
+    .modal-title {
+      font-family: 'Orbitron', monospace;
+      font-size: 38px;
+      font-weight: 900;
+      color: var(--primary);
+      text-shadow: 0 0 20px var(--primary);
+      margin: 0 0 10px 0;
+      letter-spacing: 3px;
+    }
+
+    .modal-title.danger {
+      color: var(--secondary);
+      text-shadow: 0 0 20px var(--secondary);
+    }
+
+    .modal-subtitle {
+      font-size: 18px;
+      color: #9cb5db;
+      margin-bottom: 24px;
+    }
+
+    .score-summary {
+      background: rgba(0, 0, 0, 0.4);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 12px;
+      padding: 16px;
+      margin: 20px 0 30px;
+      display: flex;
+      justify-content: space-around;
+    }
+
+    .btn {
+      background: linear-gradient(135deg, var(--primary), #0088ff);
+      border: none;
+      border-radius: 10px;
+      color: #05060f;
+      font-family: 'Orbitron', monospace;
+      font-size: 16px;
+      font-weight: 900;
+      padding: 14px 34px;
+      letter-spacing: 2px;
+      cursor: pointer;
+      box-shadow: 0 0 20px rgba(0, 240, 255, 0.6);
+      transition: all 0.2s;
+    }
+
+    .btn:hover {
+      transform: translateY(-2px) scale(1.03);
+      box-shadow: 0 0 30px rgba(0, 240, 255, 0.9);
+      background: linear-gradient(135deg, #70f7ff, #19a0ff);
+    }
+
+    .btn-secondary {
+      background: transparent;
+      border: 1px solid var(--primary);
+      color: var(--primary);
+      box-shadow: none;
+      margin-left: 12px;
+    }
+
+    .btn-secondary:hover {
+      background: rgba(0, 240, 255, 0.15);
+      color: #fff;
+    }
+
+    .hidden {
+      display: none !important;
+    }
+
+    /* Sound indicator in top right */
+    #sound-toggle {
+      pointer-events: auto;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      color: var(--primary);
+      font-family: 'Orbitron', monospace;
+      font-size: 13px;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- WebGL Rendering Canvas -->
+  <canvas id="c"></canvas>
+  <div class="screen-overlay"></div>
+
+  <!-- Realtime HUD Display -->
+  <div id="hud">
+    <div class="hud-panel">
+      <div class="hud-stat">
+        <span class="hud-label">Pilot Shield</span>
+        <div class="shield-container">
+          <div id="shield-bar" class="shield-fill"></div>
+        </div>
+      </div>
+      <div class="hud-stat">
+        <span class="hud-label">Score</span>
+        <span id="score-display" class="hud-value">0</span>
+      </div>
+      <div class="hud-stat">
+        <span class="hud-label">Combo</span>
+        <span id="combo-display" class="hud-value alt">x1</span>
+      </div>
+    </div>
+
+    <div class="hud-panel">
+      <div class="hud-stat">
+        <span class="hud-label">Warp Factor</span>
+        <span id="speed-display" class="hud-value gold">1.0x</span>
+      </div>
+      <div class="hud-stat">
+        <span class="hud-label">Record</span>
+        <span id="high-score" class="hud-value">0</span>
+      </div>
+      <div id="sound-toggle" title="Click to Toggle Sound">
+        <span>AUDIO</span>
+        <span id="sound-icon">🔊</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Bottom Instructions Bar -->
+  <div id="bottom-bar">
+    <div><span class="key-badge">W A S D</span> / <span class="key-badge">ARROWS</span> Thrust</div>
+    <div><span class="key-badge">SPACE</span> Laser Cannon</div>
+    <div><span class="key-badge">P</span> Pause</div>
+    <div><span class="key-badge">R</span> Reset</div>
+  </div>
+
+  <!-- Game Over Modal -->
+  <div id="gameover-modal" class="modal-overlay hidden">
+    <div class="modal-card">
+      <h1 class="modal-title danger">SYSTEM FAILURE</h1>
+      <p class="modal-subtitle">Your fighter vessel sustained critical hull damage!</p>
+      
+      <div class="score-summary">
+        <div>
+          <div class="hud-label">Final Score</div>
+          <div id="final-score" class="hud-value">0</div>
+        </div>
+        <div>
+          <div class="hud-label">High Score</div>
+          <div id="final-best" class="hud-value gold">0</div>
+        </div>
+        <div>
+          <div class="hud-label">Obstacles Destroyed</div>
+          <div id="final-destroyed" class="hud-value alt">0</div>
+        </div>
+      </div>
+
+      <button id="restart-btn" class="btn">DEPLOY AGAIN (R)</button>
+      <a href="index.html" class="btn btn-secondary">BACK TO CLASSIC</a>
+    </div>
+  </div>
+
+  <!-- Pause Modal -->
+  <div id="pause-modal" class="modal-overlay hidden">
+    <div class="modal-card">
+      <h1 class="modal-title">MISSION PAUSED</h1>
+      <p class="modal-subtitle">Neural link suspended. Press [P] or click below to resume flight.</p>
+      <button id="resume-btn" class="btn">RESUME MISSION</button>
+    </div>
+  </div>
+
+  <!-- ==================== GLSL SHADERS ==================== -->
+  <script id="vertexshader" type="glsl">
+    attribute vec3 a_position;
+    attribute vec4 a_color;
+    attribute float a_pointsize;
+
+    uniform vec3 u_offset;
+    uniform mat4 u_matrix;
+
+    varying vec4 v_color;
+
+    void main(void) {
+      vec4 transformed = u_matrix * vec4(a_position, 1.0);
+      vec3 final_pos = transformed.xyz + u_offset;
+
+      gl_Position = vec4(final_pos, 1.0);
+      gl_PointSize = a_pointsize;
+      v_color = a_color;
+    }
+  </script>
+
+  <script id="fragmentshader" type="glsl">
+    precision mediump float;
+
+    varying vec4 v_color;
+    uniform int u_is_particle; // 1 = round glowing point sprite, 0 = regular polygon
+
+    void main(void) {
+      if (u_is_particle == 1) {
+        // Soft glowing circular radial falloff
+        vec2 coord = gl_PointCoord - vec2(0.5);
+        float dist = length(coord);
+        if (dist > 0.5) {
+          discard;
+        }
+        float glow = 1.0 - smoothstep(0.0, 0.5, dist);
+        gl_FragColor = vec4(v_color.rgb * 1.5, v_color.a * glow);
+      } else {
+        gl_FragColor = v_color;
+      }
+    }
+  </script>
+
+  <!-- ==================== GAME LOGIC ==================== -->
+  <script>
+    // Audio Synthesizer (Zero External Dependencies)
+    var AudioController = (function() {
+      var ctx = null;
+      var enabled = true;
+
+      function getContext() {
+        if (!ctx) {
+          var AudioCtx = window.AudioContext || window.webkitAudioContext;
+          if (AudioCtx) ctx = new AudioCtx();
+        }
+        if (ctx && ctx.state === 'suspended') {
+          ctx.resume();
+        }
+        return ctx;
+      }
+
+      return {
+        toggle: function() {
+          enabled = !enabled;
+          document.getElementById('sound-icon').innerText = enabled ? '🔊' : '🔇';
+          return enabled;
+        },
+        laser: function() {
+          if (!enabled) return;
+          var ac = getContext();
+          if (!ac) return;
+          var osc = ac.createOscillator();
+          var gain = ac.createGain();
+          osc.type = 'sawtooth';
+          osc.frequency.setValueAtTime(900, ac.currentTime);
+          osc.frequency.exponentialRampToValueAtTime(150, ac.currentTime + 0.12);
+          gain.gain.setValueAtTime(0.18, ac.currentTime);
+          gain.gain.exponentialRampToValueAtTime(0.01, ac.currentTime + 0.12);
+          osc.connect(gain);
+          gain.connect(ac.destination);
+          osc.start();
+          osc.stop(ac.currentTime + 0.13);
+        },
+        explosion: function() {
+          if (!enabled) return;
+          var ac = getContext();
+          if (!ac) return;
+          var bufferSize = ac.sampleRate * 0.25;
+          var buffer = ac.createBuffer(1, bufferSize, ac.sampleRate);
+          var data = buffer.getChannelData(0);
+          for (var i = 0; i < bufferSize; i++) {
+            data[i] = (Math.random() * 2 - 1) * Math.exp(-i / (ac.sampleRate * 0.08));
+          }
+          var noise = ac.createBufferSource();
+          noise.buffer = buffer;
+          var filter = ac.createBiquadFilter();
+          filter.type = 'lowpass';
+          filter.frequency.setValueAtTime(600, ac.currentTime);
+          filter.frequency.exponentialRampToValueAtTime(60, ac.currentTime + 0.25);
+          var gain = ac.createGain();
+          gain.gain.setValueAtTime(0.4, ac.currentTime);
+          gain.gain.exponentialRampToValueAtTime(0.01, ac.currentTime + 0.25);
+          noise.connect(filter);
+          filter.connect(gain);
+          gain.connect(ac.destination);
+          noise.start();
+        },
+        powerup: function() {
+          if (!enabled) return;
+          var ac = getContext();
+          if (!ac) return;
+          [523.25, 659.25, 783.99, 1046.5].forEach(function(freq, idx) {
+            var osc = ac.createOscillator();
+            var gain = ac.createGain();
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(freq, ac.currentTime + idx * 0.05);
+            gain.gain.setValueAtTime(0.12, ac.currentTime + idx * 0.05);
+            gain.gain.exponentialRampToValueAtTime(0.01, ac.currentTime + idx * 0.05 + 0.1);
+            osc.connect(gain);
+            gain.connect(ac.destination);
+            osc.start(ac.currentTime + idx * 0.05);
+            osc.stop(ac.currentTime + idx * 0.05 + 0.12);
+          });
+        },
+        hit: function() {
+          if (!enabled) return;
+          var ac = getContext();
+          if (!ac) return;
+          var osc = ac.createOscillator();
+          var gain = ac.createGain();
+          osc.type = 'triangle';
+          osc.frequency.setValueAtTime(140, ac.currentTime);
+          osc.frequency.exponentialRampToValueAtTime(40, ac.currentTime + 0.18);
+          gain.gain.setValueAtTime(0.3, ac.currentTime);
+          gain.gain.exponentialRampToValueAtTime(0.01, ac.currentTime + 0.18);
+          osc.connect(gain);
+          gain.connect(ac.destination);
+          osc.start();
+          osc.stop(ac.currentTime + 0.2);
+        }
+      };
+    })();
+
+    // WebGL Core Setup
+    var canvas, gl;
+    var shaderprogram;
+    var a_position, a_color, a_pointsize;
+    var u_offset, u_matrix, u_is_particle;
+
+    // Game Variables
+    var score = 0;
+    var highScore = parseInt(localStorage.getItem('cs460_cyber_highscore') || '0');
+    var destroyedCount = 0;
+    var combo = 1;
+    var comboTimer = 0;
+    var shield = 100;
+    var maxShield = 100;
+    var speedMultiplier = 1.0;
+    var isPaused = false;
+    var isGameOver = false;
+    var gameTime = 0;
+
+    // Player State
+    var player = {
+      offset: [-0.65, 0.0, 0.0],
+      velocity: [0.0, 0.0],
+      tilt: 0.0,
+      width: 0.16,
+      height: 0.09,
+      lastShotTime: 0,
+      fireRate: 140, // ms between shots
+      invulnerable: 0,
+      v_buffer: null,
+      i_buffer: null,
+      c_buffer: null,
+      indexCount: 0
+    };
+
+    // Keyboard Input State
+    var keys = {};
+
+    // Dynamic Entity Collections
+    var obstacles = [];
+    var bullets = [];
+    var particles = [];
+    var stars = [];
+    var powerups = [];
+
+    // WebGL Buffers for dynamic objects
+    var dynamicVBuffer, dynamicCBuffer, dynamicPBuffer;
+
+    window.onload = function() {
+      initWebGL();
+      initPlayerGeometry();
+      initStarfield(90);
+      spawnInitialObstacles(10);
+      setupInputListeners();
+      
+      document.getElementById('high-score').innerText = highScore;
+
+      // Start animation loop
+      requestAnimationFrame(gameLoop);
+    };
+
+    function initWebGL() {
+      canvas = document.getElementById('c');
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+
+      gl = canvas.getContext('webgl', { alpha: false, antialias: true });
+      if (!gl) {
+        alert('WebGL not supported on this browser');
+        return;
+      }
+      gl.viewport(0, 0, canvas.width, canvas.height);
+      gl.enable(gl.BLEND);
+      gl.blendFunc(gl.SRC_ALPHA, gl.ONE); // Additive blending for neon glow
+
+      window.addEventListener('resize', function() {
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+        gl.viewport(0, 0, canvas.width, canvas.height);
+      });
+
+      // Shader compilation
+      var vShader = gl.createShader(gl.VERTEX_SHADER);
+      gl.shaderSource(vShader, document.getElementById('vertexshader').innerText);
+      gl.compileShader(vShader);
+
+      var fShader = gl.createShader(gl.FRAGMENT_SHADER);
+      gl.shaderSource(fShader, document.getElementById('fragmentshader').innerText);
+      gl.compileShader(fShader);
+
+      shaderprogram = gl.createProgram();
+      gl.attachShader(shaderprogram, vShader);
+      gl.attachShader(shaderprogram, fShader);
+      gl.linkProgram(shaderprogram);
+      gl.useProgram(shaderprogram);
+
+      // Locations
+      a_position = gl.getAttribLocation(shaderprogram, 'a_position');
+      a_color = gl.getAttribLocation(shaderprogram, 'a_color');
+      a_pointsize = gl.getAttribLocation(shaderprogram, 'a_pointsize');
+
+      u_offset = gl.getUniformLocation(shaderprogram, 'u_offset');
+      u_matrix = gl.getUniformLocation(shaderprogram, 'u_matrix');
+      u_is_particle = gl.getUniformLocation(shaderprogram, 'u_is_particle');
+
+      // Shared Dynamic Buffers
+      dynamicVBuffer = gl.createBuffer();
+      dynamicCBuffer = gl.createBuffer();
+      dynamicPBuffer = gl.createBuffer();
+    }
+
+    // Modern Fighter Jet Indexed Geometry with Neon Accents
+    function initPlayerGeometry() {
+      // 8 Unique Vertices for Futuristic Stealth Interceptor
+      var vertices = new Float32Array([
+        -0.08, -0.05, 0.0, // 0: Tail left
+        -0.02,  0.02, 0.0, // 1: Fuselage top
+        -0.08,  0.05, 0.0, // 2: Tail right / wingtip
+         0.03, -0.01, 0.0, // 3: Underbelly
+         0.03,  0.02, 0.0, // 4: Cockpit ridge
+         0.09,  0.00, 0.0, // 5: Needle nose tip
+        -0.09,  0.00, 0.0, // 6: Engine thruster core
+        -0.04,  0.035, 0.0 // 7: Cockpit canopy peak
+      ]);
+
+      // Neon Colors per vertex (Cyan, Hot Magenta, Deep Carbon)
+      var colors = new Float32Array([
+        0.0, 0.9, 1.0, 1.0, // 0: Cyan tail
+        0.1, 0.2, 0.3, 1.0, // 1: Carbon body
+        0.0, 0.9, 1.0, 1.0, // 2: Cyan wing
+        0.05, 0.1, 0.2, 1.0,// 3: Underbelly
+        0.0, 1.0, 0.9, 1.0, // 4: Cockpit glow
+        1.0, 0.9, 0.2, 1.0, // 5: Golden nose tip
+        1.0, 0.2, 0.6, 1.0, // 6: Magenta afterburner
+        0.0, 1.0, 1.0, 1.0  // 7: Canopy glass
+      ]);
+
+      var indices = new Uint8Array([
+        0, 1, 2,  // Tail wing
+        0, 3, 1,  // Main lower body
+        1, 3, 4,  // Fuselage
+        3, 5, 4,  // Nose cone
+        1, 4, 7,  // Canopy ridge
+        0, 6, 2   // Engine exhaust
+      ]);
+
+      player.v_buffer = gl.createBuffer();
+      gl.bindBuffer(gl.ARRAY_BUFFER, player.v_buffer);
+      gl.bufferData(gl.ARRAY_BUFFER, vertices, gl.STATIC_DRAW);
+
+      player.c_buffer = gl.createBuffer();
+      gl.bindBuffer(gl.ARRAY_BUFFER, player.c_buffer);
+      gl.bufferData(gl.ARRAY_BUFFER, colors, gl.STATIC_DRAW);
+
+      player.i_buffer = gl.createBuffer();
+      gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, player.i_buffer);
+      gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, indices, gl.STATIC_DRAW);
+
+      player.indexCount = indices.length;
+      gl.bindBuffer(gl.ARRAY_BUFFER, null);
+      gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, null);
+    }
+
+    // Parallax Starfield
+    function initStarfield(count) {
+      stars = [];
+      for (var i = 0; i < count; i++) {
+        stars.push({
+          x: Math.random() * 2 - 1,
+          y: Math.random() * 2 - 1,
+          size: Math.random() * 3 + 1.2,
+          speed: (Math.random() * 0.003 + 0.001),
+          brightness: Math.random() * 0.7 + 0.3
+        });
+      }
+    }
+
+    // Spawn Obstacle Mines and Asteroids
+    function createObstacleObject(startX) {
+      var isElite = Math.random() < 0.25;
+      return {
+        x: startX !== undefined ? startX : (1.1 + Math.random() * 0.3),
+        y: (Math.random() * 1.7) - 0.85,
+        baseSpeed: (Math.random() * 0.004 + 0.0035),
+        rotSpeed: (Math.random() * 0.06 - 0.03),
+        angle: Math.random() * Math.PI * 2,
+        size: isElite ? 0.065 : 0.045,
+        type: isElite ? 'mine' : 'asteroid',
+        hp: isElite ? 2 : 1,
+        color: isElite ? [1.0, 0.0, 0.45, 1.0] : [0.95, 0.5, 0.1, 1.0]
+      };
+    }
+
+    function spawnInitialObstacles(count) {
+      obstacles = [];
+      for (var i = 0; i < count; i++) {
+        obstacles.push(createObstacleObject(-0.2 + (i * 0.22)));
+      }
+    }
+
+    // Particle Burst Generator
+    function createExplosion(x, y, color, count, speedScale) {
+      speedScale = speedScale || 1.0;
+      for (var i = 0; i < count; i++) {
+        var angle = Math.random() * Math.PI * 2;
+        var spd = (Math.random() * 0.015 + 0.005) * speedScale;
+        particles.push({
+          x: x,
+          y: y,
+          vx: Math.cos(angle) * spd,
+          vy: Math.sin(angle) * spd,
+          life: 1.0,
+          decay: Math.random() * 0.035 + 0.02,
+          size: Math.random() * 14 + 6,
+          color: [color[0], color[1], color[2], 1.0]
+        });
+      }
+    }
+
+    // Keyboard & UI Input
+    function setupInputListeners() {
+      window.addEventListener('keydown', function(e) {
+        keys[e.code] = true;
+        keys[e.keyCode] = true;
+
+        if (e.code === 'KeyP') {
+          togglePause();
+        }
+        if (e.code === 'KeyR' && isGameOver) {
+          restartGame();
+        }
+        if (e.code === 'Space') {
+          e.preventDefault();
+        }
+      });
+
+      window.addEventListener('keyup', function(e) {
+        keys[e.code] = false;
+        keys[e.keyCode] = false;
+      });
+
+      document.getElementById('sound-toggle').addEventListener('click', function() {
+        AudioController.toggle();
+      });
+
+      document.getElementById('restart-btn').addEventListener('click', restartGame);
+      document.getElementById('resume-btn').addEventListener('click', togglePause);
+    }
+
+    function togglePause() {
+      if (isGameOver) return;
+      isPaused = !isPaused;
+      document.getElementById('pause-modal').classList.toggle('hidden', !isPaused);
+      if (!isPaused) {
+        requestAnimationFrame(gameLoop);
+      }
+    }
+
+    function fireLaser() {
+      var now = Date.now();
+      if (now - player.lastShotTime < player.fireRate) return;
+      player.lastShotTime = now;
+
+      AudioController.laser();
+
+      // Dual wingtip pulse cannons
+      bullets.push({
+        x: player.offset[0] + 0.07,
+        y: player.offset[1] + 0.015,
+        speed: 0.028,
+        color: [0.0, 0.95, 1.0, 1.0]
+      });
+      bullets.push({
+        x: player.offset[0] + 0.07,
+        y: player.offset[1] - 0.015,
+        speed: 0.028,
+        color: [0.0, 0.95, 1.0, 1.0]
+      });
+
+      // Muzzle spark effect
+      particles.push({
+        x: player.offset[0] + 0.08,
+        y: player.offset[1],
+        vx: 0.005,
+        vy: 0.0,
+        life: 0.6,
+        decay: 0.15,
+        size: 18,
+        color: [0.4, 0.9, 1.0, 0.9]
+      });
+    }
+
+    // Main Update Loop
+    function update(deltaTime) {
+      if (isPaused || isGameOver) return;
+
+      gameTime += deltaTime;
+
+      // Warp Factor Speed Scaling every ~6 seconds
+      speedMultiplier = 1.0 + Math.floor(gameTime / 6000) * 0.15;
+      document.getElementById('speed-display').innerText = speedMultiplier.toFixed(1) + 'x';
+
+      // Score Over Time
+      score += Math.round(1 * combo);
+      document.getElementById('score-display').innerText = score;
+
+      // Combo Decay
+      if (comboTimer > 0) {
+        comboTimer -= deltaTime;
+        if (comboTimer <= 0) {
+          combo = 1;
+          document.getElementById('combo-display').innerText = 'x1';
+        }
+      }
+
+      // Player Movement Handling (Smooth Inertia)
+      var targetVx = 0;
+      var targetVy = 0;
+      var accel = 0.012;
+
+      if (keys['ArrowUp'] || keys['KeyW'] || keys[38]) targetVy += accel;
+      if (keys['ArrowDown'] || keys['KeyS'] || keys[40]) targetVy -= accel;
+      if (keys['ArrowLeft'] || keys['KeyA'] || keys[37]) targetVx -= accel;
+      if (keys['ArrowRight'] || keys['KeyD'] || keys[39]) targetVx += accel;
+
+      player.velocity[0] += (targetVx - player.velocity[0]) * 0.18;
+      player.velocity[1] += (targetVy - player.velocity[1]) * 0.18;
+
+      player.offset[0] += player.velocity[0];
+      player.offset[1] += player.velocity[1];
+
+      // Screen Clamping
+      player.offset[0] = Math.max(-0.92, Math.min(0.85, player.offset[0]));
+      player.offset[1] = Math.max(-0.88, Math.min(0.88, player.offset[1]));
+
+      // Banking Tilt Angle
+      player.tilt = -player.velocity[1] * 12.0;
+
+      // Shooting
+      if (keys['Space'] || keys[32]) {
+        fireLaser();
+      }
+
+      // Jet Thruster Particles
+      particles.push({
+        x: player.offset[0] - 0.08,
+        y: player.offset[1] + (Math.random() * 0.01 - 0.005),
+        vx: -0.015 - (Math.random() * 0.008),
+        vy: (Math.random() * 0.006 - 0.003),
+        life: 1.0,
+        decay: 0.06,
+        size: Math.random() * 12 + 6,
+        color: Math.random() > 0.4 ? [1.0, 0.3, 0.1, 0.9] : [0.0, 0.8, 1.0, 0.9]
+      });
+
+      // Update Starfield
+      for (var s = 0; s < stars.length; s++) {
+        stars[s].x -= stars[s].speed * speedMultiplier;
+        if (stars[s].x < -1.1) {
+          stars[s].x = 1.1;
+          stars[s].y = Math.random() * 2 - 1;
+        }
+      }
+
+      // Update Bullets
+      for (var b = bullets.length - 1; b >= 0; b--) {
+        bullets[b].x += bullets[b].speed;
+        if (bullets[b].x > 1.1) {
+          bullets.splice(b, 1);
+        }
+      }
+
+      // Update Obstacles & Collision
+      for (var o = obstacles.length - 1; o >= 0; o--) {
+        var obs = obstacles[o];
+        obs.x -= obs.baseSpeed * speedMultiplier;
+        obs.angle += obs.rotSpeed;
+
+        // Respawn if offscreen
+        if (obs.x < -1.2) {
+          obstacles[o] = createObstacleObject(1.1 + Math.random() * 0.2);
+          continue;
+        }
+
+        // Bullet vs Obstacle Collision
+        var hitByBullet = false;
+        for (var bi = bullets.length - 1; bi >= 0; bi--) {
+          var bull = bullets[bi];
+          var dist = Math.hypot(bull.x - obs.x, bull.y - obs.y);
+          if (dist < obs.size + 0.02) {
+            bullets.splice(bi, 1);
+            obs.hp -= 1;
+            hitByBullet = true;
+            createExplosion(bull.x, bull.y, [0.0, 0.9, 1.0], 8, 0.8);
+            if (obs.hp <= 0) break;
+          }
+        }
+
+        if (obs.hp <= 0) {
+          // Destroyed Obstacle!
+          AudioController.explosion();
+          createExplosion(obs.x, obs.y, obs.color, 24, 1.2);
+          destroyedCount++;
+          score += 150 * combo;
+          combo = Math.min(10, combo + 1);
+          comboTimer = 2200; // 2.2s window
+          document.getElementById('combo-display').innerText = 'x' + combo;
+
+          // Chance to drop shield energy powerup
+          if (Math.random() < 0.28) {
+            powerups.push({
+              x: obs.x,
+              y: obs.y,
+              type: 'shield',
+              size: 0.04
+            });
+          }
+
+          // Respawn obstacle
+          obstacles[o] = createObstacleObject(1.15 + Math.random() * 0.3);
+          continue;
+        }
+
+        // Airplane vs Obstacle Collision (AABB + Radius Hybrid)
+        var pLeft = player.offset[0] - 0.07;
+        var pRight = player.offset[0] + 0.07;
+        var pBottom = player.offset[1] - 0.04;
+        var pTop = player.offset[1] + 0.04;
+
+        if (obs.x >= pLeft - obs.size && obs.x <= pRight + obs.size &&
+            obs.y >= pBottom - obs.size && obs.y <= pTop + obs.size) {
+
+          if (player.invulnerable <= 0) {
+            AudioController.hit();
+            shield -= 34;
+            player.invulnerable = 60; // 1 sec invulnerability flashing
+            createExplosion(player.offset[0], player.offset[1], [1.0, 0.2, 0.2], 18, 1.0);
+            updateShieldBar();
+
+            if (shield <= 0) {
+              triggerGameOver();
+              return;
+            }
+          }
+        }
+      }
+
+      // Update Powerups
+      for (var p = powerups.length - 1; p >= 0; p--) {
+        var pow = powerups[p];
+        pow.x -= 0.004 * speedMultiplier;
+
+        // Pickup collision
+        if (Math.hypot(pow.x - player.offset[0], pow.y - player.offset[1]) < 0.08) {
+          AudioController.powerup();
+          shield = Math.min(maxShield, shield + 35);
+          updateShieldBar();
+          score += 250;
+          createExplosion(pow.x, pow.y, [0.0, 1.0, 0.5], 16, 0.9);
+          powerups.splice(p, 1);
+          continue;
+        }
+
+        if (pow.x < -1.1) {
+          powerups.splice(p, 1);
+        }
+      }
+
+      // Update Particles
+      for (var pi = particles.length - 1; pi >= 0; pi--) {
+        var part = particles[pi];
+        part.x += part.vx;
+        part.y += part.vy;
+        part.life -= part.decay;
+        if (part.life <= 0) {
+          particles.splice(pi, 1);
+        }
+      }
+
+      if (player.invulnerable > 0) {
+        player.invulnerable--;
+      }
+    }
+
+    function updateShieldBar() {
+      var bar = document.getElementById('shield-bar');
+      var pct = Math.max(0, shield);
+      bar.style.width = pct + '%';
+      if (pct > 50) {
+        bar.style.background = 'linear-gradient(90deg, #00f0ff, #00ff88)';
+        bar.style.boxShadow = '0 0 10px #00f0ff';
+      } else if (pct > 25) {
+        bar.style.background = 'linear-gradient(90deg, #ffe600, #ff8800)';
+        bar.style.boxShadow = '0 0 10px #ffe600';
+      } else {
+        bar.style.background = 'linear-gradient(90deg, #ff0055, #ff0000)';
+        bar.style.boxShadow = '0 0 15px #ff0055';
+      }
+    }
+
+    function triggerGameOver() {
+      isGameOver = true;
+      AudioController.explosion();
+      createExplosion(player.offset[0], player.offset[1], [1.0, 0.1, 0.3], 45, 2.0);
+
+      if (score > highScore) {
+        highScore = score;
+        localStorage.setItem('cs460_cyber_highscore', highScore.toString());
+      }
+
+      document.getElementById('final-score').innerText = score;
+      document.getElementById('final-best').innerText = highScore;
+      document.getElementById('final-destroyed').innerText = destroyedCount;
+      document.getElementById('gameover-modal').classList.remove('hidden');
+    }
+
+    function restartGame() {
+      score = 0;
+      destroyedCount = 0;
+      combo = 1;
+      comboTimer = 0;
+      shield = maxShield;
+      gameTime = 0;
+      speedMultiplier = 1.0;
+      isGameOver = false;
+      isPaused = false;
+      player.offset = [-0.65, 0.0, 0.0];
+      player.velocity = [0.0, 0.0];
+      player.invulnerable = 0;
+
+      bullets = [];
+      particles = [];
+      powerups = [];
+      spawnInitialObstacles(10);
+      updateShieldBar();
+
+      document.getElementById('score-display').innerText = '0';
+      document.getElementById('combo-display').innerText = 'x1';
+      document.getElementById('high-score').innerText = highScore;
+      document.getElementById('gameover-modal').classList.add('hidden');
+      document.getElementById('pause-modal').classList.add('hidden');
+
+      requestAnimationFrame(gameLoop);
+    }
+
+    // Helper: 4x4 Identity Matrix with Rotation & Scale
+    function createTransformMatrix(radAngle, scaleX, scaleY) {
+      scaleX = scaleX || 1.0;
+      scaleY = scaleY || 1.0;
+      var c = Math.cos(radAngle);
+      var s = Math.sin(radAngle);
+      // Column-major order
+      return new Float32Array([
+         c * scaleX,  s * scaleY, 0.0, 0.0,
+        -s * scaleX,  c * scaleY, 0.0, 0.0,
+         0.0,         0.0,        1.0, 0.0,
+         0.0,         0.0,        0.0, 1.0
+      ]);
+    }
+
+    // Render WebGL Frame
+    function render() {
+      gl.clearColor(0.02, 0.024, 0.06, 1.0);
+      gl.clear(gl.COLOR_BUFFER_BIT);
+
+      var identityMatrix = createTransformMatrix(0.0);
+
+      // 1. Render Stars (Point Sprites)
+      if (stars.length > 0) {
+        var starPos = new Float32Array(stars.length * 3);
+        var starCol = new Float32Array(stars.length * 4);
+        var starSize = new Float32Array(stars.length);
+
+        for (var i = 0; i < stars.length; i++) {
+          starPos[i * 3]     = stars[i].x;
+          starPos[i * 3 + 1] = stars[i].y;
+          starPos[i * 3 + 2] = 0.0;
+
+          var b = stars[i].brightness;
+          starCol[i * 4]     = 0.5 * b;
+          starCol[i * 4 + 1] = 0.8 * b;
+          starCol[i * 4 + 2] = 1.0 * b;
+          starCol[i * 4 + 3] = b;
+
+          starSize[i] = stars[i].size;
+        }
+
+        bindDynamicPoints(starPos, starCol, starSize, stars.length);
+        gl.uniform3fv(u_offset, [0, 0, 0]);
+        gl.uniformMatrix4fv(u_matrix, false, identityMatrix);
+        gl.uniform1i(u_is_particle, 1);
+        gl.drawArrays(gl.POINTS, 0, stars.length);
+      }
+
+      // 2. Render Obstacles (Rotated Geometric Polygons)
+      for (var o = 0; o < obstacles.length; o++) {
+        var obs = obstacles[o];
+        var rotMat = createTransformMatrix(obs.angle, obs.size / 0.05, obs.size / 0.05);
+
+        // Spiky Mine / Asteroid Shape
+        var obsVerts = new Float32Array([
+           0.00,  0.05, 0.0,
+          -0.04, -0.04, 0.0,
+           0.04, -0.04, 0.0,
+           0.00, -0.05, 0.0,
+          -0.04,  0.04, 0.0,
+           0.04,  0.04, 0.0
+        ]);
+
+        var obsColor = new Float32Array([
+          obs.color[0], obs.color[1], obs.color[2], 1.0,
+          obs.color[0] * 0.7, obs.color[1] * 0.7, obs.color[2] * 0.7, 1.0,
+          obs.color[0] * 0.7, obs.color[1] * 0.7, obs.color[2] * 0.7, 1.0,
+          obs.color[0], obs.color[1], obs.color[2], 1.0,
+          obs.color[0] * 0.7, obs.color[1] * 0.7, obs.color[2] * 0.7, 1.0,
+          obs.color[0] * 0.7, obs.color[1] * 0.7, obs.color[2] * 0.7, 1.0
+        ]);
+
+        bindDynamicTriangles(obsVerts, obsColor, 6);
+        gl.uniform3fv(u_offset, [obs.x, obs.y, 0.0]);
+        gl.uniformMatrix4fv(u_matrix, false, rotMat);
+        gl.uniform1i(u_is_particle, 0);
+        gl.drawArrays(gl.TRIANGLES, 0, 6);
+      }
+
+      // 3. Render Powerup Orbs
+      if (powerups.length > 0) {
+        var pPos = new Float32Array(powerups.length * 3);
+        var pCol = new Float32Array(powerups.length * 4);
+        var pSize = new Float32Array(powerups.length);
+
+        for (var p = 0; p < powerups.length; p++) {
+          pPos[p * 3]     = powerups[p].x;
+          pPos[p * 3 + 1] = powerups[p].y;
+          pPos[p * 3 + 2] = 0.0;
+
+          pCol[p * 4]     = 0.0;
+          pCol[p * 4 + 1] = 1.0;
+          pCol[p * 4 + 2] = 0.6;
+          pCol[p * 4 + 3] = 0.95;
+
+          pSize[p] = 26.0 + Math.sin(gameTime * 0.01) * 6.0;
+        }
+
+        bindDynamicPoints(pPos, pCol, pSize, powerups.length);
+        gl.uniform3fv(u_offset, [0, 0, 0]);
+        gl.uniformMatrix4fv(u_matrix, false, identityMatrix);
+        gl.uniform1i(u_is_particle, 1);
+        gl.drawArrays(gl.POINTS, 0, powerups.length);
+      }
+
+      // 4. Render Lasers (Stretched Luminous Bolts)
+      if (bullets.length > 0) {
+        var bPos = new Float32Array(bullets.length * 3);
+        var bCol = new Float32Array(bullets.length * 4);
+        var bSize = new Float32Array(bullets.length);
+
+        for (var b = 0; b < bullets.length; b++) {
+          bPos[b * 3]     = bullets[b].x;
+          bPos[b * 3 + 1] = bullets[b].y;
+          bPos[b * 3 + 2] = 0.0;
+
+          bCol[b * 4]     = bullets[b].color[0];
+          bCol[b * 4 + 1] = bullets[b].color[1];
+          bCol[b * 4 + 2] = bullets[b].color[2];
+          bCol[b * 4 + 3] = bullets[b].color[3];
+
+          bSize[b] = 16.0;
+        }
+
+        bindDynamicPoints(bPos, bCol, bSize, bullets.length);
+        gl.uniform3fv(u_offset, [0, 0, 0]);
+        gl.uniformMatrix4fv(u_matrix, false, identityMatrix);
+        gl.uniform1i(u_is_particle, 1);
+        gl.drawArrays(gl.POINTS, 0, bullets.length);
+      }
+
+      // 5. Render Particle Sparks & Thruster Fire
+      if (particles.length > 0) {
+        var partPos = new Float32Array(particles.length * 3);
+        var partCol = new Float32Array(particles.length * 4);
+        var partSize = new Float32Array(particles.length);
+
+        for (var pi = 0; pi < particles.length; pi++) {
+          partPos[pi * 3]     = particles[pi].x;
+          partPos[pi * 3 + 1] = particles[pi].y;
+          partPos[pi * 3 + 2] = 0.0;
+
+          var alpha = particles[pi].life;
+          partCol[pi * 4]     = particles[pi].color[0];
+          partCol[pi * 4 + 1] = particles[pi].color[1];
+          partCol[pi * 4 + 2] = particles[pi].color[2];
+          partCol[pi * 4 + 3] = alpha;
+
+          partSize[pi] = particles[pi].size * alpha;
+        }
+
+        bindDynamicPoints(partPos, partCol, partSize, particles.length);
+        gl.uniform3fv(u_offset, [0, 0, 0]);
+        gl.uniformMatrix4fv(u_matrix, false, identityMatrix);
+        gl.uniform1i(u_is_particle, 1);
+        gl.drawArrays(gl.POINTS, 0, particles.length);
+      }
+
+      // 6. Render Airplane (Indexed Geometry + Tilting Rotation)
+      if (!isGameOver && (player.invulnerable % 8 < 4)) {
+        var tiltMatrix = createTransformMatrix(player.tilt * Math.PI / 180);
+
+        gl.bindBuffer(gl.ARRAY_BUFFER, player.v_buffer);
+        gl.vertexAttribPointer(a_position, 3, gl.FLOAT, false, 0, 0);
+        gl.enableVertexAttribArray(a_position);
+
+        gl.bindBuffer(gl.ARRAY_BUFFER, player.c_buffer);
+        gl.vertexAttribPointer(a_color, 4, gl.FLOAT, false, 0, 0);
+        gl.enableVertexAttribArray(a_color);
+
+        gl.disableVertexAttribArray(a_pointsize);
+
+        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, player.i_buffer);
+
+        gl.uniform3fv(u_offset, player.offset);
+        gl.uniformMatrix4fv(u_matrix, false, tiltMatrix);
+        gl.uniform1i(u_is_particle, 0);
+
+        gl.drawElements(gl.TRIANGLES, player.indexCount, gl.UNSIGNED_BYTE, 0);
+      }
+    }
+
+    // Helper: Buffer Binding Routines
+    function bindDynamicPoints(positions, colors, sizes, count) {
+      gl.bindBuffer(gl.ARRAY_BUFFER, dynamicVBuffer);
+      gl.bufferData(gl.ARRAY_BUFFER, positions, gl.DYNAMIC_DRAW);
+      gl.vertexAttribPointer(a_position, 3, gl.FLOAT, false, 0, 0);
+      gl.enableVertexAttribArray(a_position);
+
+      gl.bindBuffer(gl.ARRAY_BUFFER, dynamicCBuffer);
+      gl.bufferData(gl.ARRAY_BUFFER, colors, gl.DYNAMIC_DRAW);
+      gl.vertexAttribPointer(a_color, 4, gl.FLOAT, false, 0, 0);
+      gl.enableVertexAttribArray(a_color);
+
+      gl.bindBuffer(gl.ARRAY_BUFFER, dynamicPBuffer);
+      gl.bufferData(gl.ARRAY_BUFFER, sizes, gl.DYNAMIC_DRAW);
+      gl.vertexAttribPointer(a_pointsize, 1, gl.FLOAT, false, 0, 0);
+      gl.enableVertexAttribArray(a_pointsize);
+    }
+
+    function bindDynamicTriangles(positions, colors, count) {
+      gl.bindBuffer(gl.ARRAY_BUFFER, dynamicVBuffer);
+      gl.bufferData(gl.ARRAY_BUFFER, positions, gl.DYNAMIC_DRAW);
+      gl.vertexAttribPointer(a_position, 3, gl.FLOAT, false, 0, 0);
+      gl.enableVertexAttribArray(a_position);
+
+      gl.bindBuffer(gl.ARRAY_BUFFER, dynamicCBuffer);
+      gl.bufferData(gl.ARRAY_BUFFER, colors, gl.DYNAMIC_DRAW);
+      gl.vertexAttribPointer(a_color, 4, gl.FLOAT, false, 0, 0);
+      gl.enableVertexAttribArray(a_color);
+
+      gl.disableVertexAttribArray(a_pointsize);
+    }
+
+    // Main Engine RAF Loop
+    var lastTimestamp = 0;
+    function gameLoop(timestamp) {
+      if (!lastTimestamp) lastTimestamp = timestamp;
+      var deltaTime = Math.min(32, timestamp - lastTimestamp);
+      lastTimestamp = timestamp;
+
+      update(deltaTime);
+      render();
+
+      if (!isPaused && !isGameOver) {
+        requestAnimationFrame(gameLoop);
+      }
+    }
+  </script>
+</body>
+</html>
